@@ -1,0 +1,675 @@
+---
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
+---
+
+COURSEWORK SUBMISSION SHEET
+
+Student's Name:------ MAYANK SHARMA
+
+Registration No:------- B00866512
+
+Course Title: -------- MSc Data Science FT
+
+|                                             |
+|:--------------------------------------------|
+| COM740: Statistical Modelling & Data Mining |
+| CRN: 33217                                  |
+| Coursework 3                                |
+
+## The code in this work has been referenced from Professor Marinus Toman lecture tutorials and has been modified as per the requirements of the Coursework-3
+
+## --------------------------Data Cleaning using Statistical Techniques-------------------------------
+
+```{r echo=TRUE}
+## Loading all the packages and libraries --------------
+
+#install.packages('plyr', repos = "http://cran.us.r-project.org")                            
+#install.packages("dplyr")
+#install.packages("readr")                           # Install readr package
+#install.packages("purrr")
+#install.packages('lubridate')
+library(lubridate)
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(plyr)
+library(purrr)
+library(e1071)
+library(rmarkdown)
+library(corrplot)
+library(Hmisc)
+library(psych)
+library(GGally)
+library(missForest)
+library(PerformanceAnalytics)
+library(modelr)
+library(psych)
+library(Rmisc)
+library(scales)
+library(rpart)
+library(yardstick)
+library(gridExtra)
+library(scales)
+library(caret)
+library(MASS)
+library(caTools)
+library(MLmetrics)
+library(randomForest)
+library(reshape2)
+library(memisc)
+library(hrbrthemes)
+library(ggpubr)
+library(moments)
+library(ROCR)
+library(naivebayes)
+library(pscl)
+library(gmodels)
+library(knitr)
+
+```
+
+##----------------------------------DataSet Description----------------------------##
+
+```{r echo=TRUE}
+
+## The Wine raw dataset is imported in R studio
+
+wine_raw_dataset <- read.csv("C:/Users/mayan/Documents/Mayank Docs/Ulster - Data Science/Term-2/Statistical Modelling and Data Mining/Research Paper/wineData_labelled_V1.csv", stringsAsFactors = FALSE)
+
+## Checking the Wine raw Dataset - its attributes and classes
+
+names(wine_raw_dataset) ## Names of all the attributes
+
+dim(wine_raw_dataset) ## Provides the dimensions of the dataset
+
+str(wine_raw_dataset) ## Provides the structure of the dataframe with datatypes
+
+summary(wine_raw_dataset) ## Provides the Min, Max, Mean, Median basic statistical features of the dataset
+
+glimpse(wine_raw_dataset)
+
+colSums(is.na(wine_raw_dataset)) ## Checks the missing values in the dataset
+
+count(distinct(wine_raw_dataset)) ## Check if there are duplicate samples in the dataset
+
+sapply(wine_raw_dataset, function(x) n_distinct(x)) ## To check the distinct values in the dataset
+
+table(wine_raw_dataset$Label) ## Checking the class labels for class imbalance if any. We see that there is class imbalance between the 3 classes and we may need to balance the class as part of our analysis.
+
+## There are 13 attributes which are the chemical constituents of the wine and 1 class label - Class1, Class2 and Class3 of the wine categories
+
+
+```
+
+## ------------------------Dataset Exploratory analysis----------------------------##
+
+```{r echo=TRUE}
+
+##******************************Data Transformation ******************************************##
+
+## The Wine raw class balanced dataset is imported in R studio. The dataset was class balanced using SMOTE and randomized in WEKA
+
+wine_raw_smote_dataset <- read.csv("C:/Users/mayan/Documents/Mayank Docs/Ulster - Data Science/Term-2/Statistical Modelling and Data Mining/Research Paper/wineData_labelled_V1_SMOTE&randomized.csv", stringsAsFactors = FALSE)
+
+## Checking the Wine raw SMOTE'd Dataset dimensions
+
+dim(wine_raw_smote_dataset) ## Provides the dimensions of the dataset
+
+
+# Converting the class label to factor
+
+wine_raw_smote_dataset$Label <- as.factor(wine_raw_smote_dataset$Label)
+
+str(wine_raw_smote_dataset) ## Check the structure of the class label balanced dataset. There are 213 samples with 14 attributes
+
+table(wine_raw_smote_dataset$Label) ## Checking the class labels for class labels. It can be seen that there is no class imbalance between the 3 classes
+
+summary(wine_raw_smote_dataset)
+
+
+# Creating a correlation plot by converting the class label to numeric. This would help to check the correlation between continuous attributes and the class Label
+wine_raw_smote_dataset$Label <- as.numeric(wine_raw_smote_dataset$Label)
+wine_corr <- cor(wine_raw_smote_dataset)
+corrplot(wine_corr, number.cex = .9, method = "number", type = "full", tl.cex = 0.8,tl.col = "black")
+#Using the correlation plot find out the predictor features that are strongly correlated with the label. We found that the attributes Flavanoids, OD280/OD315 of diluted wines, Total Phenols, Hue, Proline, Alcalinity of Ash, Proanthocyannis, Malic Acid are the top 8 correlated attributes with the class label
+
+
+wine_corr_mat <- as.matrix(wine_raw_smote_dataset)
+str(wine_corr_mat)
+cor(wine_corr_mat)
+
+# The correlations between the selected 8 numerical attributes was studied. There are few attributes which are highly correlated and would give the problem of multicollinearity. However as we are using the non-linear classifiers kNN and NB we would ignore the multicollinearity issue. 
+
+# Converting the class label to factor
+
+wine_raw_smote_dataset$Label <- as.factor(wine_raw_smote_dataset$Label)
+
+## Checking the distribution of the continuous attributes through histogram density plot with the the line plot.
+
+par(mfrow = c(1,1))
+b1 <- ggplot(wine_raw_smote_dataset, aes(x = Flavanoids)) + geom_histogram(aes(y = after_stat(density)), colour = "darkblue", fill = "lightblue") + geom_density(linetype = 1, colour = 2, lwd = 1)
+
+par(mfrow = c(1,1))
+b2 <- ggplot(wine_raw_smote_dataset, aes(x = OD280.OD315.of.diluted.wines)) + geom_histogram(aes(y = after_stat(density)), colour = "darkblue", fill = "lightblue") + geom_density(linetype = 1, colour = 2, lwd = 1)
+
+par(mfrow = c(1,1))
+b3 <- ggplot(wine_raw_smote_dataset, aes(x = Total.phenols)) + geom_histogram(aes(y = after_stat(density)), colour = "darkblue", fill = "lightblue") + geom_density(linetype = 1, colour = 2, lwd = 1)
+
+par(mfrow = c(1,1))
+b4 <- ggplot(wine_raw_smote_dataset, aes(x = Hue)) + geom_histogram(aes(y = after_stat(density)), colour = "darkblue", fill = "lightblue") + geom_density(linetype = 1, colour = 2, lwd = 1)
+
+par(mfrow = c(1,1))
+b5 <- ggplot(wine_raw_smote_dataset, aes(x = Proline)) + geom_histogram(aes(y = after_stat(density)), colour = "darkblue", fill = "lightblue") + geom_density(linetype = 1, colour = 2, lwd = 1)
+
+par(mfrow = c(1,1))
+b6 <- ggplot(wine_raw_smote_dataset, aes(x = Alcalinity.of.ash)) + geom_histogram(aes(y = after_stat(density)), colour = "darkblue", fill = "lightblue") + geom_density(linetype = 1, colour = 2, lwd = 1)
+
+par(mfrow = c(1,1))
+b7 <- ggplot(wine_raw_smote_dataset, aes(x = Proanthocyannis)) + geom_histogram(aes(y = after_stat(density)), colour = "darkblue", fill = "lightblue") + geom_density(linetype = 1, colour = 2, lwd = 1)
+
+par(mfrow = c(1,1))
+b8 <- ggplot(wine_raw_smote_dataset, aes(x = Malic.acid)) + geom_histogram(aes(y = after_stat(density)), colour = "darkblue", fill = "lightblue") + geom_density(linetype = 1, colour = 2, lwd = 1)
+
+
+grid.arrange(b1, b2, b3, b4, b5, b6, b7, b8, ncol = 3)
+
+
+
+# We can make out from the above 8 density plots that the 8 attributes are all skewed and might be affected by outliers. 
+
+# Also the range of min and max is quite high for Proline attribute so we will scale the dataset and then create a box plot to see the outliers in the 8 most correlated attributes.
+
+# Distribution of Flavanoid variable
+ggdensity(wine_raw_smote_dataset, x = "Flavanoids", fill = "lightblue", title = "Flavanoids") +
+  scale_x_continuous(limits = c(0, 12)) +
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+
+skewness(wine_raw_smote_dataset$Flavanoids) ## The Flavanoids attribute is moderately postively skewed
+
+
+# Distribution of OD280.OD315.of.diluted.wines variable
+ggdensity(wine_raw_smote_dataset, x = "OD280.OD315.of.diluted.wines", fill = "lightblue", title = "OD280.OD315.of.diluted.wines") +
+  scale_x_continuous(limits = c(0, 12)) +
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+
+skewness(wine_raw_smote_dataset$OD280.OD315.of.diluted.wines) ## The OD280.OD315.of.diluted.wines attribute is moderately negatively skewed
+
+
+# Distribution of Total.phenols variable
+ggdensity(wine_raw_smote_dataset, x = "Total.phenols", fill = "lightblue", title = "Total.phenols") +
+  scale_x_continuous(limits = c(0, 12)) +
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+
+skewness(wine_raw_smote_dataset$Total.phenols) ## The Total.phenols attribute is moderately positively skewed
+
+
+# Distribution of Hue variable
+ggdensity(wine_raw_smote_dataset, x = "Hue", fill = "lightblue", title = "Hue") +
+  scale_x_continuous(limits = c(0, 10)) +
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+
+skewness(wine_raw_smote_dataset$Hue) ## The Hue attribute is moderately positively skewed
+
+
+# Distribution of Proline variable
+ggdensity(wine_raw_smote_dataset, x = "Proline", fill = "lightblue", title = "Proline") +
+  scale_x_continuous(limits = c(0, 1500)) +
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+
+skewness(wine_raw_smote_dataset$Proline) ## The Proline attribute is positively skewed
+
+
+# Distribution of Alcalinity.of.ash variable
+ggdensity(wine_raw_smote_dataset, x = "Alcalinity.of.ash", fill = "lightblue", title = "Alcalinity.of.ash") +
+  scale_x_continuous(limits = c(0, 100)) +
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+
+skewness(wine_raw_smote_dataset$Alcalinity.of.ash) ## The Alcalinity.of.ash attribute is moderately positively skewed
+
+
+# Distribution of Proanthocyannis variable
+ggdensity(wine_raw_smote_dataset, x = "Proanthocyannis", fill = "lightblue", title = "Proanthocyannis") +
+  scale_x_continuous(limits = c(0, 12)) +
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+
+skewness(wine_raw_smote_dataset$Proanthocyannis) ## The Proanthocyannis attribute is moderately positively skewed
+
+
+# Distribution of Malic.acid variable
+ggdensity(wine_raw_smote_dataset, x = "Malic.acid", fill = "lightblue", title = "Malic.acid") +
+  scale_x_continuous(limits = c(0, 12)) +
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+
+skewness(wine_raw_smote_dataset$Malic.acid) ## The Malic.acid attribute is positively skewed
+
+
+
+
+
+# Scaling the dataset to make all the attributes on the same scale to remove the skewness - Z score normalization
+
+#min_max_norm <- function(x) {
+ #   (x - min(x)) / (max(x) - min(x))
+ # }
+
+wine_raw_smote_scaled_dataset <- as.data.frame(scale(wine_raw_smote_dataset[1:13]))
+
+#wine_raw_smote_scaled_dataset <- as.data.frame(lapply(wine_raw_smote_dataset[1:13], min_max_norm))
+
+
+
+par(mfrow = c(1,1))
+boxplot(wine_raw_smote_scaled_dataset, main = "Boxplot of the Numerical Attributes with Outliers", las = 2, col = c("blue","red","green"))
+
+
+wine_raw_smote_scaled_dataset$Label <- wine_raw_smote_dataset$Label
+
+
+#wine_standardize <- as.data.frame(scale(wine_raw_smote_dataset[1:13]))
+
+# Converting the class label to factor
+
+wine_raw_smote_scaled_dataset$Label <- as.factor(wine_raw_smote_scaled_dataset$Label)
+levels(wine_raw_smote_scaled_dataset$Label) <- c("Class1", "Class2", "Class3")
+
+str(wine_raw_smote_scaled_dataset)
+
+summary(wine_raw_smote_scaled_dataset) ## Checking that for all the attributes the mean is 0 and SD is 1
+
+view(wine_raw_smote_scaled_dataset)
+
+
+par(mfrow = c(1,1))
+b1 <- ggplot(wine_raw_smote_scaled_dataset, aes(x = Flavanoids)) + geom_histogram(aes(y = after_stat(density)), colour = "#e9ecef", fill = "#69b3a2") + geom_density(linetype = 1, colour = 2, lwd = 1)
+
+
+par(mfrow = c(1,1))
+b2 <- ggplot(wine_raw_smote_scaled_dataset, aes(x = OD280.OD315.of.diluted.wines)) + geom_histogram(aes(y = after_stat(density)), colour = "#e9ecef", fill = "#69b3a2") + geom_density(linetype = 1, colour = 2, lwd = 1)
+
+par(mfrow = c(1,1))
+b3 <- ggplot(wine_raw_smote_scaled_dataset, aes(x = Total.phenols)) + geom_histogram(aes(y = after_stat(density)), colour = "#e9ecef", fill = "#69b3a2") + geom_density(linetype = 1, colour = 2, lwd = 1)
+
+par(mfrow = c(1,1))
+b4 <- ggplot(wine_raw_smote_scaled_dataset, aes(x = Hue)) + geom_histogram(aes(y = after_stat(density)), colour = "#e9ecef", fill = "#69b3a2") + geom_density(linetype = 1, colour = 2, lwd = 1)
+
+par(mfrow = c(1,1))
+b5 <- ggplot(wine_raw_smote_scaled_dataset, aes(x = Proline)) + geom_histogram(aes(y = after_stat(density)), colour = "#e9ecef", fill = "#69b3a2") + geom_density(linetype = 1, colour = 2, lwd = 1)
+
+par(mfrow = c(1,1))
+b6 <- ggplot(wine_raw_smote_scaled_dataset, aes(x = Alcalinity.of.ash)) + geom_histogram(aes(y = after_stat(density)), colour = "#e9ecef", fill = "#69b3a2") + geom_density(linetype = 1, colour = 2, lwd = 1)
+
+par(mfrow = c(1,1))
+b7 <- ggplot(wine_raw_smote_scaled_dataset, aes(x = Proanthocyannis)) + geom_histogram(aes(y = after_stat(density)), colour = "#e9ecef", fill = "#69b3a2") + geom_density(linetype = 1, colour = 2, lwd = 1)
+
+par(mfrow = c(1,1))
+b8 <- ggplot(wine_raw_smote_scaled_dataset, aes(x = Malic.acid)) + geom_histogram(aes(y = after_stat(density)), colour = "#e9ecef", fill = "#69b3a2") + geom_density(linetype = 1, colour = 2, lwd = 1)
+
+
+grid.arrange(b1, b2, b3, b4, b5, b6, b7, b8, ncol = 3)
+
+
+
+
+###                       Outliers removal from the Selected Attributes
+
+wine_data <- wine_raw_smote_scaled_dataset[,1:14]
+dim(wine_data)
+
+str(wine_data)
+
+
+quartiles <- quantile(wine_data$Malic.acid, probs = c(.25, .75), na.rm = FALSE)
+IQR <- IQR(wine_data$Malic.acid)
+ 
+Lower <- quartiles[1] - 1.5*IQR
+Upper <- quartiles[2] + 1.5*IQR 
+ 
+data_outlier2 <- subset(wine_data$Malic.acid, wine_data$Malic.acid < Lower | wine_data$Malic.acid > Upper) # Malic Acid attribute outliers
+
+outlier_indices2 <- which(wine_data$Malic.acid %in% data_outlier2)
+outlier_indices2
+data_outlier2
+
+par(mfrow = c(1,3))
+data_no_outlier2 = wine_data[-outlier_indices2,]
+dim(data_no_outlier2)
+#boxplot(data_no_outlier2[,-14],las = 2)
+
+
+
+
+quartiles <- quantile(data_no_outlier2$Hue, probs = c(.25, .75), na.rm = FALSE)
+IQR <- IQR(data_no_outlier2$Malic.acid)
+ 
+Lower <- quartiles[1] - 1.5*IQR
+Upper <- quartiles[2] + 1.5*IQR 
+ 
+data_outlier3 <- subset(data_no_outlier2$Hue, data_no_outlier2$Hue < Lower | data_no_outlier2$Hue > Upper) # Hue attribute outliers
+
+outlier_indices3 <- which(data_no_outlier2$Hue %in% data_outlier3)
+outlier_indices3
+data_outlier3
+
+par(mfrow = c(1,3))
+data_no_outlier3 = data_no_outlier2[-outlier_indices3,]
+dim(data_no_outlier3)
+#boxplot(data_no_outlier3[,-14],las = 2)
+
+
+quartiles <- quantile(data_no_outlier3$Alcalinity.of.ash, probs = c(.25, .75), na.rm = FALSE)
+IQR <- IQR(data_no_outlier3$Alcalinity.of.ash)
+ 
+Lower <- quartiles[1] - 1.5*IQR
+Upper <- quartiles[2] + 1.5*IQR 
+ 
+data_outlier4 <- subset(data_no_outlier3$Alcalinity.of.ash, data_no_outlier3$Alcalinity.of.ash < Lower | data_no_outlier3$Alcalinity.of.ash > Upper) # Alcalinity.of.ash attribute outliers
+
+outlier_indices4 <- which(data_no_outlier3$Alcalinity.of.ash %in% data_outlier4)
+outlier_indices4
+data_outlier4
+
+par(mfrow = c(1,3))
+data_no_outlier4 = data_no_outlier3[-outlier_indices4,]
+dim(data_no_outlier4)
+#boxplot(data_no_outlier4[,-14],las = 2)
+
+
+quartiles <- quantile(data_no_outlier4$Proanthocyannis, probs = c(.25, .75), na.rm = FALSE)
+IQR <- IQR(data_no_outlier4$Proanthocyannis)
+ 
+Lower <- quartiles[1] - 1.5*IQR
+Upper <- quartiles[2] + 1.5*IQR 
+ 
+data_outlier5 <- subset(data_no_outlier4$Proanthocyannis, data_no_outlier4$Proanthocyannis < Lower | data_no_outlier4$Proanthocyannis > Upper) # Proanthocyannis attribute outliers
+
+outlier_indices5 <- which(data_no_outlier4$Proanthocyannis %in% data_outlier5)
+outlier_indices5
+data_outlier5
+
+
+data_no_outlier5 = data_no_outlier4[-outlier_indices5,]
+dim(data_no_outlier5)
+str(data_no_outlier5)
+#boxplot(data_no_outlier5[,-14],las = 2)
+
+ wine_modelling_dataset <- data_no_outlier5[,c(2,4,6,7,9,11,12,13)] # Top 8 selected features only and the class label
+
+
+
+# Scaling the attributes after outliers removal
+wine_modelling_dataset <- as.data.frame(scale(wine_modelling_dataset))
+ 
+ 
+wine_modelling_dataset$Label <- data_no_outlier5$Label
+
+summary(wine_modelling_dataset)
+str(wine_modelling_dataset)
+
+ par(mfrow = c(1,1))
+ boxplot(wine_modelling_dataset[,-9], main = "Boxplot of the Selected Numerical Attributes without Outliers", las = 2, col = c("blue","red","green"))
+
+
+
+
+
+```
+
+## -----------------Dataset (Normalized without Outliers) Statistical Modelling and Results-----------##
+
+```{r echo=TRUE}
+
+## Splitting the dataset in training and test sets.
+
+str(wine_modelling_dataset)
+
+set.seed(1234) # Setting the see to make the work replicable
+
+split = sample.split(wine_modelling_dataset$Label, SplitRatio = 0.7)
+
+wine_train = subset(wine_modelling_dataset, split == TRUE) # 70% of the dataset used for training the models
+
+wine_test = subset(wine_modelling_dataset, split == FALSE)# 30% of the dataset used for testing the models
+
+dim(wine_train)
+dim(wine_test)
+
+
+
+#***************** K-NN Classifier modelling and predictions **********************************#
+
+x = wine_train[,-9] #Define attributes 
+y = wine_train$Label #Define class labels
+
+
+set.seed(71)
+mdl_knn = train(x,y,'knn',trControl=trainControl(method ='cv',number = 10),tuneGrid=expand.grid(k=1:30)) #Fit k-NN with k=3
+mdl_knn
+varImp(mdl_knn)
+plot(mdl_knn)
+
+# Training accuracy was 94.3% with K = 3
+
+#Evaluating knn model performance
+wine_predict_knn <- predict(mdl_knn, wine_test[,-9], type = "raw")
+print(wine_predict_knn)
+
+table(wine_predict_knn,wine_test$Label)
+
+agreement_knn <- wine_predict_knn == wine_test$Label
+table(agreement_knn)
+prop.table(table(agreement_knn))
+
+# Making the Confusion Matrix
+(cm_knn = confusionMatrix(wine_predict_knn, wine_test$Label))
+
+(Classification.Accuracy <- 100*Accuracy(wine_predict_knn, wine_test$Label))
+# The accuracy of the classifier is 91.8%. Best accuracy achieved with 10 fold Cross Validation
+
+
+confusionMatrix(table(wine_predict_knn,wine_test$Label))
+
+CrossTable(wine_predict_knn,wine_test$Label)
+
+
+
+
+
+#************ Naive Bayes (NB) Classifier modelling and predictions **************************#
+
+
+#grid <- data.frame(fL = 0:5, usekernel = TRUE, adjust = c(0,5,by = 1))
+
+set.seed(71)
+mdl_nb = train(x,y,'nb',trControl=trainControl(method ='cv',number = 10)) #Fit Naive Bayes Classifier
+
+mdl_nb
+plot(mdl_nb)
+confusionMatrix(mdl_nb) # The training accuracy is 96.45%
+
+nb_varimp <- varImp(mdl_nb)
+plot(nb_varimp)
+
+#Evaluating NB model performance
+wine_predict_nb <- predict(mdl_nb, wine_test[,-9])
+print(wine_predict_nb)
+
+table(wine_predict_nb,wine_test$Label)
+
+agreement_nb <- wine_predict_nb == wine_test$Label
+table(agreement_nb)
+prop.table(table(agreement_nb))
+
+# Making the Confusion Matrix
+(cm_nb = confusionMatrix(wine_predict_nb, wine_test$Label))
+
+(Classification.Accuracy <- 100*Accuracy(wine_predict_nb, wine_test$Label))
+# The accuracy of the classifier is 90.16% with Kernel = True, Centre and Scaling the training set
+
+confusionMatrix(table(wine_predict_nb,wine_test$Label))
+
+CrossTable(wine_predict_nb,wine_test$Label)
+
+
+
+# collect resamples
+results <- resamples(list(kNN=mdl_knn, NB=mdl_nb))
+summary(results) # To check the mean and max
+
+
+
+ModelType <- c("K nearest neighbor", "Naive Bayes")  # vector containing names of models
+
+# Training classification accuracy
+TrainAccuracy <- c(max(mdl_knn$results$Accuracy), max(mdl_nb$results$Accuracy))
+
+# Training misclassification error
+Train_missclass_Error <- 1 - TrainAccuracy
+
+# validation classification accuracy
+ValidationAccuracy <- c(cm_knn$overall[1], cm_nb$overall[1])
+
+# Validation misclassification error or out-of-sample-error
+Validation_missclass_Error <- 1 - ValidationAccuracy
+
+
+metrics <- data.frame(ModelType, TrainAccuracy, Train_missclass_Error, ValidationAccuracy, 
+    Validation_missclass_Error)  # data frame with above metrics
+
+kable(metrics, digits = 5)  # print table using kable() from knitr package
+
+
+
+```
+
+## -----------------Dataset (Normalized with Outliers) Statistical Modelling and Results--------------##
+
+```{r echo=TRUE}
+
+## Splitting the dataset in training and test sets.
+
+wine_modelling_dataset_n <- wine_raw_smote_scaled_dataset[,c(2,4,6,7,9,11,12,13,14)] # Top 8 selected features only and the class label
+
+str(wine_modelling_dataset_n)
+summary(wine_modelling_dataset_n)
+
+set.seed(1234) # Setting the see to make the work replicable
+
+split = sample.split(wine_modelling_dataset_n$Label, SplitRatio = 0.7)
+
+wine_train = subset(wine_modelling_dataset_n, split == TRUE) # 70% of the dataset used for training the models
+
+wine_test = subset(wine_modelling_dataset_n, split == FALSE)# 30% of the dataset used for testing the models
+
+dim(wine_train)
+dim(wine_test)
+
+
+
+#***************** K-NN Classifier modelling and predictions **********************************#
+
+x = wine_train[,-9] #Define attributes 
+y = wine_train$Label #Define class labels
+
+
+set.seed(71)
+mdl_knn = train(x,y,'knn',trControl=trainControl(method ='cv',number = 10),tuneGrid=expand.grid(k=1:30)) #Fit k-NN with k=3
+mdl_knn
+varImp(mdl_knn)
+plot(mdl_knn)
+
+# Training accuracy was 94.66% with K = 26. 
+
+#Evaluating knn model performance
+wine_predict_knn <- predict(mdl_knn, wine_test[,-9], type = "raw")
+print(wine_predict_knn)
+
+table(wine_predict_knn,wine_test$Label)
+
+agreement_knn <- wine_predict_knn == wine_test$Label
+table(agreement_knn)
+prop.table(table(agreement_knn))
+
+# Making the Confusion Matrix
+(cm_knn = confusionMatrix(wine_predict_knn, wine_test$Label))
+
+(Classification.Accuracy <- 100*Accuracy(wine_predict_knn, wine_test$Label))
+# The accuracy of the classifier is 92.06%. Best accuracy achieved with 10 fold Cross Validation
+
+
+confusionMatrix(table(wine_predict_knn,wine_test$Label))
+
+CrossTable(wine_predict_knn,wine_test$Label)
+
+
+
+
+
+#************ Naive Bayes (NB) Classifier modelling and predictions **************************#
+
+
+#grid <- data.frame(fL = 0:5, usekernel = TRUE, adjust = c(0,5,by = 1))
+
+set.seed(71)
+mdl_nb = train(x,y,'nb',trControl=trainControl(method ='cv',number = 10)) #Fit Naive Bayes Classifier
+
+mdl_nb
+plot(mdl_nb)
+confusionMatrix(mdl_nb) # The training accuracy is 93.33%
+
+nb_varimp <- varImp(mdl_nb)
+plot(nb_varimp)
+
+#Evaluating NB model performance
+wine_predict_nb <- predict(mdl_nb, wine_test[,-9])
+print(wine_predict_nb)
+
+table(wine_predict_nb,wine_test$Label)
+
+agreement_nb <- wine_predict_nb == wine_test$Label
+table(agreement_nb)
+prop.table(table(agreement_nb))
+
+# Making the Confusion Matrix
+(cm_nb = confusionMatrix(wine_predict_nb, wine_test$Label))
+
+(Classification.Accuracy <- 100*Accuracy(wine_predict_nb, wine_test$Label))
+# The accuracy of the classifier is 93.65% with Kernel = True, Centre and Scaling the training set
+
+confusionMatrix(table(wine_predict_nb,wine_test$Label))
+
+CrossTable(wine_predict_nb,wine_test$Label)
+
+
+
+# collect resamples
+results <- resamples(list(kNN=mdl_knn, NB=mdl_nb))
+summary(results) # To check the mean and max
+
+
+
+ModelType <- c("K nearest neighbor", "Naive Bayes")  # vector containing names of models
+
+# Training classification accuracy
+TrainAccuracy <- c(max(mdl_knn$results$Accuracy), max(mdl_nb$results$Accuracy))
+
+# Training misclassification error
+Train_missclass_Error <- 1 - TrainAccuracy
+
+# validation classification accuracy
+ValidationAccuracy <- c(cm_knn$overall[1], cm_nb$overall[1])
+
+# Validation misclassification error or out-of-sample-error
+Validation_missclass_Error <- 1 - ValidationAccuracy
+
+
+metrics <- data.frame(ModelType, TrainAccuracy, Train_missclass_Error, ValidationAccuracy, 
+    Validation_missclass_Error)  # data frame with above metrics
+
+kable(metrics, digits = 5)  # print table using kable() from knitr package
+
+
+
+```
